@@ -1,0 +1,367 @@
+#![windows_subsystem = "windows"]
+
+use std::collections::VecDeque;
+use std::ffi::OsStr;
+use std::iter::once;
+use std::mem;
+use std::os::windows::ffi::OsStrExt;
+use std::ptr;
+
+type HWND      = *mut std::ffi::c_void;
+type HINSTANCE = *mut std::ffi::c_void;
+type HMENU     = *mut std::ffi::c_void;
+type HDC       = *mut std::ffi::c_void;
+type HBRUSH    = *mut std::ffi::c_void;
+type HFONT     = *mut std::ffi::c_void;
+type HGDIOBJ   = *mut std::ffi::c_void;
+type WPARAM    = usize;
+type LPARAM    = isize;
+type LRESULT   = isize;
+type BOOL      = i32;
+type DWORD     = u32;
+type UINT      = u32;
+type LONG      = i32;
+type ATOM      = u16;
+type COLORREF  = u32;
+type HPEN      = *mut std::ffi::c_void;
+
+// Window styles
+const WS_POPUP:        DWORD = 0x80000000;
+const WS_CLIPCHILDREN: DWORD = 0x02000000;
+
+// Messages
+const WM_DESTROY:     UINT = 0x0002;
+const WM_PAINT:       UINT = 0x000F;
+const WM_ERASEBKGND:  UINT = 0x0014;
+const WM_LBUTTONDOWN: UINT = 0x0201;
+const WM_LBUTTONUP:   UINT = 0x0202;
+const WM_MOUSEMOVE:   UINT = 0x0200;
+const WM_MOUSELEAVE:  UINT = 0x02A3;
+const WM_KEYDOWN:     UINT = 0x0100;
+const WM_CHAR:        UINT = 0x0102;
+const WM_CREATE:      UINT = 0x0001;
+const WM_NCHITTEST:   UINT = 0x0084;
+const WM_SYSCOMMAND:  UINT = 0x0112;
+const SC_MINIMIZE:  WPARAM = 0xF020;
+
+const WM_SETICON:     UINT   = 0x0080;
+const ICON_SMALL:     WPARAM = 0;
+const ICON_BIG:       WPARAM = 1;
+const IMAGE_ICON:     UINT   = 1;
+const LR_LOADFROMFILE:UINT   = 0x0010;
+const LR_DEFAULTSIZE: UINT   = 0x0040;
+
+const HTCAPTION:  LRESULT = 2;
+const HTCLIENT:   LRESULT = 1;
+
+const SW_MINIMIZE: i32 = 6;
+
+const IDC_ARROW:  usize = 32512;
+const PS_SOLID:   i32   = 0;
+const NULL_PEN:   i32   = 8;  // stock object
+const TRANSPARENT: i32  = 1;
+
+const DT_CENTER:       UINT = 0x00000001;
+const DT_VCENTER:      UINT = 0x00000004;
+const DT_SINGLELINE:   UINT = 0x00000020;
+const DT_RIGHT:        UINT = 0x00000002;
+const DT_END_ELLIPSIS: UINT = 0x00008000;
+
+const FW_NORMAL: i32 = 400;
+const ANSI_CHARSET:        u8 = 0;
+const OUT_TT_PRECIS:       u8 = 4;
+const CLIP_DEFAULT_PRECIS: u8 = 0;
+const CLEARTYPE_QUALITY:   u8 = 5;
+const FF_SWISS:      u8 = 0x20;
+const VARIABLE_PITCH: u8 = 2;
+
+const SW_SHOW:    i32   = 5;
+const CS_HREDRAW: DWORD = 0x0002;
+const CS_VREDRAW: DWORD = 0x0001;
+const GWLP_USERDATA: i32 = -21;
+
+const VK_RETURN:  usize = 0x0D;
+const VK_ESCAPE:  usize = 0x1B;
+const VK_BACK:    usize = 0x08;
+const VK_CONTROL: usize = 0x11;
+const VK_C:       usize = 0x43;
+const VK_V:       usize = 0x56;
+
+const CF_UNICODETEXT: UINT  = 13;
+const GMEM_MOVEABLE:  UINT  = 0x0002;
+const SRCCOPY:        DWORD = 0x00CC0020;
+const TME_LEAVE:      DWORD = 0x00000002;
+
+// ── Colors (BGR) ──────────────────────────────────────────────────
+const BG_COLOR:      COLORREF = 0x001E1E1E;
+const PANEL_COLOR:   COLORREF = 0x00222222;
+const BTN_COLOR:     COLORREF = 0x002D2D2D;
+const BTN_HOVER:     COLORREF = 0x003D3D3D;
+const BTN_PRESS:     COLORREF = 0x00505050;
+// = button: green
+const EQ_COLOR:      COLORREF = 0x00407040; // dark green BGR
+const EQ_HOVER:      COLORREF = 0x00508050;
+const EQ_PRESS:      COLORREF = 0x00306030;
+const EQ_TEXT:       COLORREF = 0x0088FF88; // light green text
+// C button: red
+const CLEAR_COLOR:   COLORREF = 0x00203070; // dark red BGR
+const CLEAR_HOVER:   COLORREF = 0x00304080;
+const CLEAR_PRESS:   COLORREF = 0x00102050;
+const CLEAR_TEXT:    COLORREF = 0x006688FF; // light red text
+// operators
+const OP_COLOR:      COLORREF = 0x002D2D2D;
+const OP_HOVER:      COLORREF = 0x003D3D3D;
+const OP_PRESS:      COLORREF = 0x00505050;
+const OP_TEXT:       COLORREF = 0x0044AAFF;
+// advanced row (√ ^ ±)
+const ADV_COLOR:     COLORREF = 0x00282830;
+const ADV_HOVER:     COLORREF = 0x00383845;
+const ADV_PRESS:     COLORREF = 0x00484858;
+const ADV_TEXT:      COLORREF = 0x00CC99FF;
+// backspace
+const BACK_COLOR:    COLORREF = 0x002D2D2D;
+const BACK_TEXT:     COLORREF = 0x0088AAFF;
+// text
+const TEXT_WHITE:    COLORREF = 0x00FFFFFF;
+const TEXT_GRAY:     COLORREF = 0x00AAAAAA;
+const ERROR_COLOR:   COLORREF = 0x004444EE;
+const SEPARATOR:     COLORREF = 0x003A3A3A;
+// titlebar close btn
+const CLOSE_HOVER:   COLORREF = 0x002222CC;
+const CLOSE_PRESS:   COLORREF = 0x001111AA;
+// titlebar minimize btn
+const MIN_HOVER:     COLORREF = 0x00404040;
+const MIN_PRESS:     COLORREF = 0x00303030;
+
+// ── Win32 structs ─────────────────────────────────────────────────
+#[repr(C)] struct WNDCLASSEXW {
+    cb_size: UINT, style: UINT,
+    lpfn_wnd_proc: Option<unsafe extern "system" fn(HWND,UINT,WPARAM,LPARAM)->LRESULT>,
+    cb_cls_extra: i32, cb_wnd_extra: i32, h_instance: HINSTANCE,
+    h_icon: *mut std::ffi::c_void, h_cursor: *mut std::ffi::c_void,
+    hbr_background: HBRUSH, lpsz_menu_name: *const u16,
+    lpsz_class_name: *const u16, h_icon_sm: *mut std::ffi::c_void,
+}
+#[repr(C)] struct MSG {
+    hwnd: HWND, message: UINT, w_param: WPARAM, l_param: LPARAM,
+    time: DWORD, pt_x: LONG, pt_y: LONG,
+}
+#[repr(C)] struct PAINTSTRUCT {
+    hdc: HDC, f_erase: BOOL, rc_paint: RECT,
+    f_restore: BOOL, f_inc_update: BOOL, rgb_reserved: [u8;32],
+}
+#[repr(C)] #[derive(Clone,Copy,Default)] struct RECT {
+    left: LONG, top: LONG, right: LONG, bottom: LONG,
+}
+#[repr(C)] #[derive(Clone,Copy,Default)] struct POINT { x: LONG, y: LONG }
+#[repr(C)] struct TRACKMOUSEEVENT {
+    cb_size: DWORD, dw_flags: DWORD, hwnd_track: HWND, dw_hover_time: DWORD,
+}
+
+// ── Win32 imports ─────────────────────────────────────────────────
+#[link(name="user32")] extern "system" {
+    fn RegisterClassExW(lpwcx: *const WNDCLASSEXW) -> ATOM;
+    fn CreateWindowExW(dw_ex_style:DWORD,lp_class_name:*const u16,lp_window_name:*const u16,
+        dw_style:DWORD,x:i32,y:i32,n_width:i32,n_height:i32,
+        h_wnd_parent:HWND,h_menu:HMENU,h_instance:HINSTANCE,lp_param:*mut std::ffi::c_void)->HWND;
+    fn ShowWindow(h_wnd:HWND,n_cmd_show:i32)->BOOL;
+    fn UpdateWindow(h_wnd:HWND)->BOOL;
+    fn GetMessageW(lp_msg:*mut MSG,h_wnd:HWND,w_msg_filter_min:UINT,w_msg_filter_max:UINT)->BOOL;
+    fn TranslateMessage(lp_msg:*const MSG)->BOOL;
+    fn DispatchMessageW(lp_msg:*const MSG)->LRESULT;
+    fn DefWindowProcW(h_wnd:HWND,msg:UINT,w_param:WPARAM,l_param:LPARAM)->LRESULT;
+    fn PostQuitMessage(n_exit_code:i32);
+    fn BeginPaint(h_wnd:HWND,lp_paint:*mut PAINTSTRUCT)->HDC;
+    fn EndPaint(h_wnd:HWND,lp_paint:*const PAINTSTRUCT)->BOOL;
+    fn InvalidateRect(h_wnd:HWND,lp_rect:*const RECT,b_erase:BOOL)->BOOL;
+    fn GetClientRect(h_wnd:HWND,lp_rect:*mut RECT)->BOOL;
+    fn GetSystemMetrics(n_index:i32)->i32;
+    fn LoadCursorW(h_instance:HINSTANCE,lp_cursor_name:*const u16)->*mut std::ffi::c_void;
+    fn SetFocus(h_wnd:HWND)->HWND;
+    fn OpenClipboard(h_wnd_new_owner:HWND)->BOOL;
+    fn EmptyClipboard()->BOOL;
+    fn SetClipboardData(u_format:UINT,h_mem:*mut std::ffi::c_void)->*mut std::ffi::c_void;
+    fn GetClipboardData(u_format:UINT)->*mut std::ffi::c_void;
+    fn CloseClipboard()->BOOL;
+    fn IsClipboardFormatAvailable(format:UINT)->BOOL;
+    fn GetWindowLongPtrW(h_wnd:HWND,n_index:i32)->isize;
+    fn SetWindowLongPtrW(h_wnd:HWND,n_index:i32,dw_new_long:isize)->isize;
+    fn TrackMouseEvent(lp_event_track:*mut TRACKMOUSEEVENT)->BOOL;
+    fn GetKeyState(n_virt_key:i32)->i16;
+    fn GetCursorPos(lp_point:*mut POINT)->BOOL;
+    fn ScreenToClient(h_wnd:HWND,lp_point:*mut POINT)->BOOL;
+    fn DestroyWindow(h_wnd:HWND)->BOOL;
+    fn LoadImageW(hinst:HINSTANCE,name:*const u16,typ:UINT,cx:i32,cy:i32,fuload:UINT)->*mut std::ffi::c_void;
+    fn SendMessageW(h_wnd:HWND,msg:UINT,w_param:WPARAM,l_param:LPARAM)->LRESULT;
+    fn DestroyIcon(h_icon:*mut std::ffi::c_void)->BOOL;
+    fn PostMessageW(h_wnd:HWND,msg:UINT,w_param:WPARAM,l_param:LPARAM)->BOOL;
+}
+#[link(name="gdi32")] extern "system" {
+    fn CreateSolidBrush(color:COLORREF)->HBRUSH;
+    fn CreatePen(fn_pen_style:i32,n_width:i32,cr_color:COLORREF)->HPEN;
+    fn SelectObject(hdc:HDC,h:HGDIOBJ)->HGDIOBJ;
+    fn DeleteObject(h:HGDIOBJ)->BOOL;
+    fn SetTextColor(hdc:HDC,color:COLORREF)->COLORREF;
+    fn SetBkMode(hdc:HDC,mode:i32)->i32;
+    fn GetStockObject(i:i32)->HGDIOBJ;
+    fn FillRect(hdc:HDC,lprc:*const RECT,hbr:HBRUSH)->i32;
+    fn DrawTextW(hdc:HDC,lp_str:*const u16,n_count:i32,lp_rect:*mut RECT,u_format:UINT)->i32;
+    fn CreateFontW(h:i32,w:i32,e:i32,o:i32,weight:i32,italic:DWORD,underline:DWORD,
+        strikeout:DWORD,charset:DWORD,out_prec:DWORD,clip_prec:DWORD,quality:DWORD,
+        pitch_family:DWORD,face:*const u16)->HFONT;
+    fn RoundRect(hdc:HDC,left:i32,top:i32,right:i32,bottom:i32,w:i32,h:i32)->BOOL;
+    fn MoveToEx(hdc:HDC,x:i32,y:i32,lp_point:*mut POINT)->BOOL;
+    fn LineTo(hdc:HDC,x:i32,y:i32)->BOOL;
+    fn CreateCompatibleDC(hdc:HDC)->HDC;
+    fn CreateCompatibleBitmap(hdc:HDC,cx:i32,cy:i32)->*mut std::ffi::c_void;
+    fn BitBlt(hdc_dest:HDC,x:i32,y:i32,cx:i32,cy:i32,hdc_src:HDC,x1:i32,y1:i32,rop:DWORD)->BOOL;
+    fn DeleteDC(hdc:HDC)->BOOL;
+    fn Ellipse(hdc:HDC,left:i32,top:i32,right:i32,bottom:i32)->BOOL;
+}
+#[link(name="kernel32")] extern "system" {
+    fn GetModuleHandleW(lp_module_name:*const u16)->HINSTANCE;
+    fn GlobalAlloc(u_flags:UINT,dw_bytes:usize)->*mut std::ffi::c_void;
+    fn GlobalLock(h_mem:*mut std::ffi::c_void)->*mut std::ffi::c_void;
+    fn GlobalUnlock(h_mem:*mut std::ffi::c_void)->BOOL;
+    fn lstrlenW(lp_string:*const u16)->i32;
+}
+
+fn to_wstring(s: &str) -> Vec<u16> { OsStr::new(s).encode_wide().chain(once(0)).collect() }
+unsafe fn wstring_to_string(ptr: *const u16) -> String {
+    if ptr.is_null() { return String::new(); }
+    String::from_utf16_lossy(std::slice::from_raw_parts(ptr, lstrlenW(ptr) as usize))
+}
+
+// ── Error types ───────────────────────────────────────────────────
+#[derive(Debug, Clone)]
+enum CalcError {
+    DivisionByZero,
+    SqrtNegative,
+    Overflow,
+    EmptyExpression,
+    UnexpectedToken(String),
+    UnmatchedParen,
+    InvalidNumber(String),
+}
+
+impl CalcError {
+    /// Short message shown on the display
+    fn display_msg(&self) -> &str {
+        match self {
+            CalcError::DivisionByZero    => "Err: Деление на 0",
+            CalcError::SqrtNegative      => "Err: √ от отриц.",
+            CalcError::Overflow          => "Err: Переполнение",
+            CalcError::EmptyExpression   => "Err: Пусто",
+            CalcError::UnexpectedToken(_)=> "Err: Синтаксис",
+            CalcError::UnmatchedParen    => "Err: Скобки",
+            CalcError::InvalidNumber(_)  => "Err: Число",
+        }
+    }
+    /// Full message for history log
+    fn history_msg(&self) -> String {
+        match self {
+            CalcError::UnexpectedToken(s) => format!("Ошибка: символ \"{}\"", s),
+            CalcError::InvalidNumber(s)   => format!("Ошибка: число \"{}\"", s),
+            other                         => other.display_msg().replace("Err: ", "Ошибка: "),
+        }
+    }
+}
+
+// ── Tokenizer ─────────────────────────────────────────────────────
+#[derive(Clone, PartialEq, Debug)]
+enum Token {
+    Number(f64),
+    Plus, Minus, Mul, Div, Pow,
+    Sqrt,   // √  — prefix unary operator
+    Pct,    // %  — postfix: resolved in preprocess_percent()
+    LParen, RParen,
+}
+
+fn tokenize(expr: &str) -> Result<Vec<Token>, CalcError> {
+    let mut tokens = Vec::new();
+    let mut chars = expr.char_indices().peekable();
+
+    while let Some((i, ch)) = chars.next() {
+        match ch {
+            ' '  => {}
+            '+'  => tokens.push(Token::Plus),
+            '-'  => tokens.push(Token::Minus),
+            '*'  => tokens.push(Token::Mul),
+            '/'  => tokens.push(Token::Div),
+            '%'  => tokens.push(Token::Pct),
+            '^'  => tokens.push(Token::Pow),
+            '√'  => tokens.push(Token::Sqrt),
+            '('  => tokens.push(Token::LParen),
+            ')'  => tokens.push(Token::RParen),
+            '0'..='9' | '.' => {
+                // Collect the full number starting at byte offset i.
+                // Also handles scientific notation: 1e+20, 3.14e-5
+                let start = i;
+                let mut end = i + ch.len_utf8();
+                let mut dots = if ch == '.' { 1u32 } else { 0 };
+                // Consume digits and decimal point
+                while let Some(&(_, nc)) = chars.peek() {
+                    if nc.is_ascii_digit() {
+                        end += nc.len_utf8(); chars.next();
+                    } else if nc == '.' {
+                        dots += 1; end += nc.len_utf8(); chars.next();
+                    } else if nc == 'e' || nc == 'E' {
+                        // Peek further: 'e' must be followed by digit or +/-digit
+                        end += nc.len_utf8(); chars.next();
+                        if let Some(&(_, sc)) = chars.peek() {
+                            if sc == '+' || sc == '-' {
+                                end += sc.len_utf8(); chars.next();
+                            }
+                        }
+                        // Consume exponent digits
+                        while let Some(&(_, dc)) = chars.peek() {
+                            if dc.is_ascii_digit() { end += dc.len_utf8(); chars.next(); }
+                            else { break; }
+                        }
+                        break; // 'e' part consumed — done with this number
+                    } else {
+                        break;
+                    }
+                }
+                let s = &expr[start..end];
+                if dots > 1 { return Err(CalcError::InvalidNumber(s.into())); }
+                let n = s.parse::<f64>()
+                    .map_err(|_| CalcError::InvalidNumber(s.into()))?;
+                tokens.push(Token::Number(n));
+            }
+            c => return Err(CalcError::UnexpectedToken(c.to_string())),
+        }
+    }
+    Ok(tokens)
+}
+
+// ── Implicit multiplication ───────────────────────────────────────
+// Inserts Mul tokens where multiplication is implied by juxtaposition:
+//   2(6)    → 2 * (6)       Number LParen
+//   (2)(3)  → (2) * (3)     RParen LParen
+//   (4)5    → (4) * 5       RParen Number  (less common but consistent)
+//   √(4)(2) → √(4) * (2)    RParen LParen (already handled)
+//   2√(9)   → 2 * √(9)      Number Sqrt
+fn implicit_mul(tokens: Vec<Token>) -> Vec<Token> {
+    let mut out = Vec::with_capacity(tokens.len() + 4);
+    for (i, tok) in tokens.iter().enumerate() {
+        if i > 0 {
+            let prev = &tokens[i - 1];
+            let needs_mul = matches!(
+                (prev, tok),
+                // Number followed by opening context
+                (Token::Number(_), Token::LParen) |
+                (Token::Number(_), Token::Sqrt)   |
+                // Closing paren followed by opening context
+                (Token::RParen,    Token::LParen) |
+                (Token::RParen,    Token::Number(_)) |
+                (Token::RParen,    Token::Sqrt)
+            );
+            if needs_mul {
+                out.push(Token::Mul);
+            }
+        }
+        out.push(tok.clone());
+    }
+    out
+}
