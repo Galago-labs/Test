@@ -1,7 +1,30 @@
-import { EntityId } from './ComponentStore';
+import { EntityId, Component } from './ComponentStore';
 
 export class Entity {
-  constructor(public readonly id: EntityId) {}
+  public readonly id: EntityId;
+  private componentStores: Map<string, any>;
+
+  constructor(id: EntityId, componentStores: Map<string, any>) {
+    this.id = id;
+    this.componentStores = componentStores;
+  }
+
+  addComponent<T extends Component>(name: string, component: T): void {
+    const store = this.componentStores.get(name);
+    if (store) {
+      store.set(this.id, component);
+    }
+  }
+
+  getComponent<T extends Component>(name: string): T | undefined {
+    const store = this.componentStores.get(name);
+    return store?.get(this.id);
+  }
+
+  hasComponent(name: string): boolean {
+    const store = this.componentStores.get(name);
+    return store?.has(this.id) ?? false;
+  }
 }
 
 export class EntityPool {
@@ -17,7 +40,7 @@ export class EntityPool {
       id = this.nextId++;
     }
     this.active.add(id);
-    return new Entity(id);
+    return new Entity(id, new Map()); // Компоненты добавляются через World
   }
 
   destroy(id: EntityId): void {

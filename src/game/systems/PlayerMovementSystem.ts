@@ -3,30 +3,36 @@
  */
 
 import { System } from '../../engine/ecs/System';
-import { World } from '../../engine/ecs/World';
-import { Entity } from '../../engine/ecs/Entity';
-import { Time } from '../../engine/core/Time';
+import { EntityId } from '../../engine/ecs/ComponentStore';
 import { InputManager } from '../../engine/input/InputManager';
 import { PositionComponent, VelocityComponent, PlayerComponent, BoundsComponent } from '../components/GameComponents';
 
 export class PlayerMovementSystem extends System {
   private input: InputManager;
 
-  constructor(world: World, input: InputManager) {
-    super(world);
+  constructor(input: InputManager) {
+    super();
     this.input = input;
   }
 
   update(deltaTime: number): void {
-    const players = this.world.query(['position', 'velocity', 'player', 'playerTag']);
-    
-    for (const entityId of players) {
-      const entity = this.world.getEntity(entityId);
-      if (!entity) continue;
+    const positionStore = this.getStore<PositionComponent>('position');
+    const velocityStore = this.getStore<VelocityComponent>('velocity');
+    const playerStore = this.getStore<PlayerComponent>('player');
+    const boundsStore = this.getStore<BoundsComponent>('bounds');
 
-      const position = entity.getComponent<PositionComponent>('position');
-      const velocity = entity.getComponent<VelocityComponent>('velocity');
-      const player = entity.getComponent<PlayerComponent>('player');
+    if (!positionStore || !velocityStore || !playerStore || !boundsStore) return;
+
+    // Находим всех игроков
+    for (const entityId of this.getActiveEntities()) {
+      if (!playerStore.has(entityId)) continue;
+
+      const position = positionStore.get(entityId);
+      const velocity = velocityStore.get(entityId);
+      const player = playerStore.get(entityId);
+      const bounds = boundsStore.get(entityId);
+
+      if (!position || !velocity || !player || !bounds) continue;
 
       // Сбрасываем скорость
       velocity.vx = 0;
@@ -57,13 +63,28 @@ export class PlayerMovementSystem extends System {
       position.x += velocity.vx * deltaTime;
       position.y += velocity.vy * deltaTime;
 
-      // Ограничиваем позицию границами экрана
-      const bounds = entity.getComponent<BoundsComponent>('bounds');
-      const canvasWidth = this.input.getCanvasWidth();
-      const canvasHeight = this.input.getCanvasHeight();
+      // Ограничиваем позицию границами экрана (предполагаем canvas 800x600)
+      const canvasWidth = 800;
+      const canvasHeight = 600;
 
       position.x = Math.max(0, Math.min(canvasWidth - bounds.width, position.x));
       position.y = Math.max(0, Math.min(canvasHeight - bounds.height, position.y));
     }
+  }
+
+  private getActiveEntities(): EntityId[] {
+    const positionStore = this.getStore<PositionComponent>('position');
+    const velocityStore = this.getStore<VelocityComponent>('velocity');
+    const playerStore = this.getStore<PlayerComponent>('player');
+    
+    if (!positionStore || !velocityStore || !playerStore) return [];
+    
+    const result: EntityId[] = [];
+    for (const entityId of positionStore.keys()) {
+      if (velocityStore.has(entityId) && playerStore.has(entityId)) {
+        result.push(entityId);
+      }
+    }
+    return result;
   }
 }

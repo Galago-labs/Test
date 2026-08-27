@@ -72,6 +72,11 @@ export class InputManager {
     return false;
   }
 
+  /** Прямая проверка нажатия клавиши */
+  isKeyDown(code: string): boolean {
+    return this.pressedKeys.has(code);
+  }
+
   getMousePosition(): { x: number; y: number } {
     return { ...this.mousePosition };
   }

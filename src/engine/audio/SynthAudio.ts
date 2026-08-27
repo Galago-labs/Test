@@ -24,7 +24,7 @@ export class SynthAudio {
 
     osc.type = type;
     osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
-    
+
     gain.gain.setValueAtTime(volume, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
 
@@ -90,6 +90,14 @@ export class SynthAudio {
   sfxBossSpawn(): void {
     this.playTone(80, 0.5, 'sawtooth', 0.5);
     setTimeout(() => this.playTone(60, 0.6, 'sawtooth', 0.5), 400);
+  }
+
+  stopAll(): void {
+    if (this.ctx && this.ctx.state !== 'closed') {
+      this.ctx.close();
+      this.ctx = null;
+      this.masterGain = null;
+    }
   }
 }
 

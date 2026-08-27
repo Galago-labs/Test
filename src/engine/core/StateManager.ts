@@ -2,9 +2,8 @@ export abstract class State {
   enter(): void {}
   exit(): void {}
   update(dt: number): void {}
+  render(ctx: CanvasRenderingContext2D): void {}
 }
-
-export type StateConstructor = new () => State;
 
 export class StateManager {
   private states: Map<string, State> = new Map();
@@ -31,10 +30,6 @@ export class StateManager {
     this.currentState.enter();
   }
 
-  getState(name: string): State | undefined {
-    return this.states.get(name);
-  }
-
   getCurrentStateName(): string | null {
     return this.currentStateName;
   }
@@ -42,6 +37,12 @@ export class StateManager {
   update(dt: number): void {
     if (this.currentState) {
       this.currentState.update(dt);
+    }
+  }
+
+  render(ctx: CanvasRenderingContext2D): void {
+    if (this.currentState) {
+      this.currentState.render(ctx);
     }
   }
 }
