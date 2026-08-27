@@ -1,10 +1,10 @@
-export type StateConstructor = new () => State;
-
-export interface State {
-  enter(): void;
-  exit(): void;
-  update(dt: number): void;
+export abstract class State {
+  enter(): void {}
+  exit(): void {}
+  update(dt: number): void {}
 }
+
+export type StateConstructor = new () => State;
 
 export class StateManager {
   private states: Map<string, State> = new Map();
