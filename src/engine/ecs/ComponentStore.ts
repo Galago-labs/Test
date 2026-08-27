@@ -30,4 +30,8 @@ export class ComponentStore<T extends Component> {
   entries(): IterableIterator<[EntityId, T]> {
     return this.components.entries();
   }
+
+  keys(): IterableIterator<EntityId> {
+    return this.components.keys();
+  }
 }

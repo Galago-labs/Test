@@ -1,5 +1,5 @@
 import { EntityId, Component, ComponentStore } from './ComponentStore';
-import { EntityPool } from './Entity';
+import { Entity, EntityPool } from './Entity';
 import { System } from './System';
 import { Commands } from './Commands';
 
@@ -30,6 +30,12 @@ export class World {
       system.registerStore(name, store);
     }
     this.systems.push(system);
+  }
+
+  /** Создает новую сущность и возвращает объект Entity */
+  createEntity(): Entity {
+    const id = this.entityPool.create().id;
+    return new Entity(id, this.componentStores);
   }
 
   spawn(components: Map<string, Component>): EntityId {
@@ -66,6 +72,34 @@ export class World {
 
   isActive(entityId: EntityId): boolean {
     return this.entityPool.isActive(entityId);
+  }
+
+  /** Возвращает объект Entity по ID */
+  getEntity(entityId: EntityId): Entity | null {
+    if (this.entityPool.isActive(entityId)) {
+      return new Entity(entityId, this.componentStores);
+    }
+    return null;
+  }
+
+  /** Возвращает все активные сущности, имеющие указанные компоненты */
+  query(componentNames: string[]): EntityId[] {
+    const activeEntities = this.entityPool.getActiveEntities();
+    const result: EntityId[] = [];
+
+    for (const entityId of activeEntities) {
+      let hasAll = true;
+      for (const name of componentNames) {
+        if (!this.hasComponent(entityId, name)) {
+          hasAll = false;
+          break;
+        }
+      }
+      if (hasAll) {
+        result.push(entityId);
+      }
+    }
+    return result;
   }
 
   update(dt: number): void {

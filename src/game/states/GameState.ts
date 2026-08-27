@@ -4,12 +4,7 @@
 
 import { State } from '../../engine/core/StateManager';
 import { World } from '../../engine/ecs/World';
-import { GameLoop } from '../../engine/core/GameLoop';
-import { InputManager } from '../../engine/input/InputManager';
-import { Renderer2D } from '../../engine/render/Renderer2D';
-import { Camera2D } from '../../engine/render/Camera2D';
-import { AssetManager } from '../../engine/assets/AssetManager';
-import { UIManager } from '../../engine/ui/UIManager';
+import { Game } from '../../engine/core/Game';
 import { EntityFactory } from '../factories/EntityFactory';
 import { PlayerMovementSystem } from '../systems/PlayerMovementSystem';
 import { EnemyMovementSystem } from '../systems/EnemyMovementSystem';
@@ -24,33 +19,16 @@ import { Vector2 } from '../../engine/math/Vector2';
 
 export class GameState extends State {
   private world: World;
-  private gameLoop: GameLoop;
-  private input: InputManager;
-  private renderer: Renderer2D;
-  private camera: Camera2D;
-  private assets: AssetManager;
-  private ui: UIManager;
+  private game: Game;
   private entityFactory: EntityFactory;
   
   private systems: Array<{ system: any; name: string }> = [];
 
-  constructor(
-    gameLoop: GameLoop,
-    input: InputManager,
-    renderer: Renderer2D,
-    camera: Camera2D,
-    assets: AssetManager,
-    ui: UIManager
-  ) {
+  constructor(game: Game) {
     super();
-    this.gameLoop = gameLoop;
-    this.input = input;
-    this.renderer = renderer;
-    this.camera = camera;
-    this.assets = assets;
-    this.ui = ui;
+    this.game = game;
     this.world = new World();
-    this.entityFactory = new EntityFactory(this.world, this.assets);
+    this.entityFactory = new EntityFactory(this.world, this.game.assets);
   }
 
   enter(): void {
@@ -61,14 +39,14 @@ export class GameState extends State {
     
     // Создаем системы
     this.systems = [
-      { system: new PlayerMovementSystem(this.world, this.input), name: 'PlayerMovement' },
+      { system: new PlayerMovementSystem(this.world, this.game.input), name: 'PlayerMovement' },
       { system: new EnemyMovementSystem(this.world), name: 'EnemyMovement' },
-      { system: new PlayerShootingSystem(this.world, this.input, this.entityFactory), name: 'PlayerShooting' },
+      { system: new PlayerShootingSystem(this.world, this.game.input, this.entityFactory), name: 'PlayerShooting' },
       { system: new ProjectileMovementSystem(this.world), name: 'ProjectileMovement' },
       { system: new CollisionSystem(this.world), name: 'Collision' },
       { system: new RewardSystem(this.world), name: 'Reward' },
       { system: new DestroySystem(this.world), name: 'Destroy' },
-      { system: new RenderSystem(this.world, this.renderer, this.camera), name: 'Render' },
+      { system: new RenderSystem(this.world, this.game.renderer, this.game.camera), name: 'Render' },
     ];
 
     // Создаем игрока
@@ -106,21 +84,37 @@ export class GameState extends State {
     });
 
     // Скрываем стартовый экран
-    this.ui.hideStartScreen();
+    if (this.game.uiLayer) {
+      const startScreen = this.game.uiLayer.querySelector('#start-screen') as HTMLElement;
+      if (startScreen) startScreen.style.display = 'none';
+      
+      // Обновляем UI
+      const uiUpdate = {
+        health: 100,
+        maxHealth: 100,
+        wave: 1,
+        score: 0,
+        gold: 0,
+      };
+      
+      const healthBar = this.game.uiLayer.querySelector('#health-bar-fill') as HTMLElement;
+      const waveEl = this.game.uiLayer.querySelector('#wave-value') as HTMLElement;
+      const scoreEl = this.game.uiLayer.querySelector('#score-value') as HTMLElement;
+      const goldEl = this.game.uiLayer.querySelector('#gold-value') as HTMLElement;
+      
+      if (healthBar) healthBar.style.width = `${(uiUpdate.health / uiUpdate.maxHealth) * 100}%`;
+      if (waveEl) waveEl.textContent = uiUpdate.wave.toString();
+      if (scoreEl) scoreEl.textContent = uiUpdate.score.toString();
+      if (goldEl) goldEl.textContent = uiUpdate.gold.toString();
 
-    // Обновляем UI
-    this.ui.update({
-      health: 100,
-      maxHealth: 100,
-      wave: 1,
-      score: 0,
-      gold: 0,
-    });
-
-    // Настраиваем кнопку рестарта
-    this.ui.setButtonCallback('restart-btn', () => {
-      this.gameLoop.setState('game');
-    });
+      // Настраиваем кнопку рестарта
+      const restartBtn = this.game.uiLayer.querySelector('#restart-btn') as HTMLButtonElement;
+      if (restartBtn) {
+        restartBtn.onclick = () => {
+          this.game.setState('game');
+        };
+      }
+    }
   }
 
   update(deltaTime: number): void {
@@ -131,31 +125,34 @@ export class GameState extends State {
 
     // Обновляем UI на основе состояния игрока
     const players = this.world.query(['player', 'playerTag', 'health']);
-    if (players.length > 0) {
+    if (players.length > 0 && this.game.uiLayer) {
       const playerEntity = this.world.getEntity(players[0]);
       if (playerEntity) {
         const player = playerEntity.getComponent<any>('player');
         const health = playerEntity.getComponent<any>('health');
         
         if (player && health) {
-          this.ui.update({
-            health: health.current,
-            maxHealth: health.max,
-            score: player.score,
-            gold: player.gold,
-          });
+          const healthBar = this.game.uiLayer.querySelector('#health-bar-fill') as HTMLElement;
+          const scoreEl = this.game.uiLayer.querySelector('#score-value') as HTMLElement;
+          const goldEl = this.game.uiLayer.querySelector('#gold-value') as HTMLElement;
+          
+          if (healthBar) healthBar.style.width = `${(health.current / health.max) * 100}%`;
+          if (scoreEl) scoreEl.textContent = player.score.toString();
+          if (goldEl) goldEl.textContent = player.gold.toString();
 
           // Проверяем смерть игрока
           if (health.current <= 0) {
-            this.ui.showGameOver(player.score);
-            // Можно перейти в состояние GameOver
+            const gameOverScreen = this.game.uiLayer.querySelector('#game-over-screen') as HTMLElement;
+            const finalScoreEl = this.game.uiLayer.querySelector('#final-score') as HTMLElement;
+            if (gameOverScreen) gameOverScreen.style.display = 'flex';
+            if (finalScoreEl) finalScoreEl.textContent = player.score.toString();
           }
         }
       }
     }
   }
 
-  render(): void {
+  render(ctx: CanvasRenderingContext2D): void {
     // Рендеринг происходит в RenderSystem
   }
 

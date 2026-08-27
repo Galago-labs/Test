@@ -24,9 +24,13 @@ export class Renderer2D {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get 2D context');
     this.ctx = ctx;
-    
+
     // Pixel-perfect rendering
     this.ctx.imageSmoothingEnabled = false;
+  }
+
+  getContext(): CanvasRenderingContext2D {
+    return this.ctx;
   }
 
   setCamera(camera: import('./Camera2D').Camera2D): void {
@@ -79,13 +83,13 @@ export class Renderer2D {
 
     for (const renderable of this.renderQueue) {
       let screenPos = renderable.position;
-      
+
       if (this.camera) {
         screenPos = this.camera.worldToScreen(renderable.position);
       }
 
       let image: HTMLImageElement | undefined = renderable.image;
-      
+
       // Handle animated sprites would be done in game layer
 
       if (image) {

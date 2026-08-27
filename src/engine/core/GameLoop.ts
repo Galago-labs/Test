@@ -4,9 +4,11 @@ export class GameLoop {
   private readonly fixedStep: number = 1 / 60;
   private running: boolean = false;
   private updateCallback: (dt: number) => void;
+  private renderCallback: () => void;
 
-  constructor(updateCallback: (dt: number) => void) {
+  constructor(updateCallback: (dt: number) => void, renderCallback: () => void) {
     this.updateCallback = updateCallback;
+    this.renderCallback = renderCallback;
   }
 
   start(): void {
@@ -36,6 +38,7 @@ export class GameLoop {
       this.accumulator -= this.fixedStep;
     }
 
+    this.renderCallback();
     requestAnimationFrame(this.loop.bind(this));
   }
 }

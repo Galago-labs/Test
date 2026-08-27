@@ -1,51 +1,57 @@
-/**
- * Система движения врагов по пути
- */
-
 import { System } from '../../engine/ecs/System';
-import { World } from '../../engine/ecs/World';
-import { PositionComponent, EnemyComponent, PathFollowingComponent, HealthComponent } from '../components/GameComponents';
-import { Vector2 } from '../../engine/math/Vector2';
+import { EntityId } from '../../engine/ecs/ComponentStore';
+import { PositionComponent, EnemyComponent, PathFollowingComponent } from '../components/GameComponents';
 
 export class EnemyMovementSystem extends System {
+  constructor() {
+    super();
+  }
+
   update(deltaTime: number): void {
-    const enemies = this.world.query(['position', 'enemy', 'pathFollowing', 'enemyTag']);
-    
-    for (const entityId of enemies) {
-      const entity = this.world.getEntity(entityId);
-      if (!entity) continue;
+    const positionStore = this.getStore<PositionComponent>('position');
+    const enemyStore = this.getStore<EnemyComponent>('enemy');
+    const pathStore = this.getStore<PathFollowingComponent>('pathFollowing');
 
-      const position = entity.getComponent<PositionComponent>('position');
-      const enemy = entity.getComponent<EnemyComponent>('enemy');
-      const pathFollowing = entity.getComponent<PathFollowingComponent>('pathFollowing');
+    if (!positionStore || !enemyStore || !pathStore) return;
 
-      // Если путь пуст или достигнут конец пути
-      if (pathFollowing.path.length === 0 || 
-          pathFollowing.currentPointIndex >= pathFollowing.path.length) {
-        continue;
-      }
+    for (const entityId of this.getActiveEntities()) {
+      const position = positionStore.get(entityId);
+      const enemy = enemyStore.get(entityId);
+      const pathFollowing = pathStore.get(entityId);
 
-      // Получаем текущую целевую точку
+      if (!position || !enemy || !pathFollowing || pathFollowing.path.length === 0) continue;
+
       const targetPoint = pathFollowing.path[pathFollowing.currentPointIndex];
-      
-      // Вычисляем направление к цели
-      const direction = new Vector2(
-        targetPoint.x - position.x,
-        targetPoint.y - position.y
-      );
-      
-      const distance = direction.length();
-      
-      // Если достигли точки пути
+      const dx = targetPoint.x - position.x;
+      const dy = targetPoint.y - position.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
       if (distance < 5) {
-        pathFollowing.currentPointIndex++;
+        pathFollowing.currentPointIndex = (pathFollowing.currentPointIndex + 1) % pathFollowing.path.length;
         continue;
       }
-      
-      // Нормализуем и применяем скорость
-      direction.normalize();
-      position.x += direction.x * enemy.speed * deltaTime;
-      position.y += direction.y * enemy.speed * deltaTime;
+
+      const vx = (dx / distance) * enemy.speed;
+      const vy = (dy / distance) * enemy.speed;
+
+      position.x += vx * deltaTime;
+      position.y += vy * deltaTime;
     }
+  }
+
+  private getActiveEntities(): EntityId[] {
+    const positionStore = this.getStore<PositionComponent>('position');
+    const enemyStore = this.getStore<EnemyComponent>('enemy');
+    const pathStore = this.getStore<PathFollowingComponent>('pathFollowing');
+
+    if (!positionStore || !enemyStore || !pathStore) return [];
+
+    const result: EntityId[] = [];
+    for (const entityId of positionStore.keys()) {
+      if (enemyStore.has(entityId) && pathStore.has(entityId)) {
+        result.push(entityId);
+      }
+    }
+    return result;
   }
 }
