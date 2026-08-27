@@ -1,0 +1,20 @@
+config_version=5
+
+[application]
+config/name="Crypt of the Lost Doc"
+run/main_scene="res://main.tscn"
+
+[autoload]
+GameState="*res://scripts/game_state.gd"
+Sfx="*res://scripts/sfx.gd"
+
+[display]
+window/size/viewport_width=480
+window/size/viewport_height=270
+window/size/window_width_override=960
+window/size/window_height_override=540
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[rendering]
+textures/canvas_textures/default_texture_filter=0
