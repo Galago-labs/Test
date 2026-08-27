@@ -1,0 +1,164 @@
+/* Основные стили игры */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+  background: #1a1a2e;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: white;
+}
+
+#game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* UI элементы */
+#ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#ui-layer * {
+  pointer-events: auto;
+}
+
+/* Health bar */
+.health-bar {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 200px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid #333;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.health-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #ff4444, #ff6666);
+  transition: width 0.3s ease;
+}
+
+/* Stat panel */
+.stat-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+#wave-display {
+  top: 20px;
+  right: 20px;
+}
+
+#score-display {
+  top: 60px;
+  right: 20px;
+}
+
+#gold-display {
+  top: 100px;
+  right: 20px;
+  color: #ffd700;
+}
+
+/* Overlays */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.overlay-content {
+  text-align: center;
+  padding: 40px;
+  background: rgba(26, 26, 46, 0.9);
+  border-radius: 16px;
+  border: 2px solid #444;
+}
+
+.overlay-content h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+  color: #ff6666;
+  text-shadow: 0 0 20px rgba(255, 102, 102, 0.5);
+}
+
+.overlay-content p {
+  font-size: 18px;
+  margin-bottom: 30px;
+  color: #ccc;
+}
+
+.overlay-content button {
+  padding: 15px 40px;
+  font-size: 20px;
+  font-weight: bold;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.overlay-content button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .health-bar {
+    width: 150px;
+    height: 15px;
+  }
+  
+  .stat-panel {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+  
+  #score-display {
+    top: 50px;
+  }
+  
+  #gold-display {
+    top: 80px;
+  }
+}
