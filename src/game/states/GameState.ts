@@ -2,7 +2,7 @@
  * Состояние игровой сессии - GameState
  */
 
-import { State } from '../../engine/core/StateManager';
+import { StateManager, type State } from '../../engine/core/StateManager';
 import { World } from '../../engine/ecs/World';
 import { GameLoop } from '../../engine/core/GameLoop';
 import { InputManager } from '../../engine/input/InputManager';
