@@ -1,4 +1,4 @@
-type StateConstructor = new () => State;
+export type StateConstructor = new () => State;
 
 export interface State {
   enter(): void;
