@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Crypt of Lost Doctor</title>
+  <title>Tower Defense Game</title>
   <style>
     * {
       margin: 0;
@@ -11,25 +11,28 @@
       box-sizing: border-box;
     }
     body {
-      background: #000;
+      background: #1a1a2e;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: white;
     }
     #game-container {
       position: relative;
-      width: 960px;
-      height: 540px;
+      width: 100vw;
+      height: 100vh;
     }
-    canvas {
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
+    #game-canvas {
+      display: block;
       width: 100%;
       height: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
-    #ui-overlay {
+    #ui-layer {
       position: absolute;
       top: 0;
       left: 0;
@@ -37,16 +40,16 @@
       height: 100%;
       pointer-events: none;
     }
-    #ui-overlay > * {
+    #ui-layer > * {
       pointer-events: auto;
     }
   </style>
 </head>
 <body>
   <div id="game-container">
-    <canvas id="game-canvas" width="480" height="270"></canvas>
-    <div id="ui-overlay"></div>
+    <canvas id="game-canvas"></canvas>
+    <div id="ui-layer"></div>
   </div>
-  <script type="module" src="/src/game/main.ts"></script>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
